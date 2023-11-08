@@ -1,0 +1,5 @@
+__pycache__/
+last versions/
+test/
+bot.db
+config.ini
