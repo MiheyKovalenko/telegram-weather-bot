@@ -5,3 +5,14 @@
 
     Прошу строго не судить, я не программист, и только недавно начал изучать это самостоятельно)
     Бота писал для локального использования. Жду предложений по улучшению кода.
+    
+    Файл config.ini:
+    [default]
+    bot_api_token = 9999999:skci8fkk-kdif8f8riei8c8cid
+    token_openweathermap = id89oejd8f8r8ieid8c8d8riri8f8f
+    token_yandex_geo = x9x9x9x9-x9x9-x9x9-x9x9-x9x9x9x9x9x9
+    admin_id = 9999999
+
+    [token_yandex]
+    1 = x9x9x9x9-x9x9-x9x9-x9x9-x9x9x9x9x9x9
+    2 = x9x9x9x9-x9x9-x9x9-x9x9-x9x9x9x9x9x9
