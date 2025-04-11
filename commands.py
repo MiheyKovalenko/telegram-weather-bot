@@ -11,42 +11,13 @@ from telebot.types import Message
 config = configparser.ConfigParser()
 config.read('config.ini')
 
-token_openweathermap = config.get('default','token_openweathermap') # API токен OpenWeatherMap
-admin_id = int(config.get('default','admin_id')) # id админа
+admin_id = int(config.get('default', 'admin_id'))  # id админа
 
-# Яндекс API токены
-token_yandex_list = []
-for key in config['token_yandex']:
-    token_value = config['token_yandex'][key]
-    token_yandex_list.append({'X-Yandex-API-Key': token_value})
-
-code_to_smile = {
-    "clear": "Ясно ☀️",
-    "partly-cloudy": "Малооблачно 🌤",
-    "overcast": "Пасмурно ☁️",
-    "light-rain": "Небольшой дождь 🌦",
-    "cloudy": "Облачно 🌥",
-    "rain": "Дождь 🌧",
-    "moderate-rain": "Умеренно сильный жождь 🌧",
-    "heavy-rain": "Сильный дождь 🌧",
-    "drizzle": "Дождь 🌧",
-    "showers": "Ливень 🌧",
-    "continuous-heavy-rain": "Длительный сильный дождь 🌧",
-    "wet-snow": "Снег с дождем 🌨",
-    "snow": "Снег 🌨",
-    "light-snow": "Небольшой снег 🌨",
-    "snow-showers": "Снегопад 🌨",
-    "hail": "Град 🌧",
-    "thunderstorm": "Гроза 🌩",
-    "thunderstorm-with-rain": "Дождь с грозой ⛈",
-    "thunderstorm-with-hail": "Гроза с градом ⛈",
-}
 
 # Команда старт
 def start(message: Message, bot: TeleBot):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
     button_data = db.get_buttons(message.chat.id)  # Получаем кнопки
-    db.update_user_data(message.chat.id, message.chat.username, message.chat.first_name, message.chat.last_name)
 
     if button_data:
         buttons = []
@@ -60,83 +31,100 @@ def start(message: Message, bot: TeleBot):
 Привет, {message.chat.first_name}!
 Этот бот предоставляет различные функции для работы с локациями.
 Вот список доступных команд:
-/start - ❔Помощь, запустить бота
-/me - 👤Профиль
-/add - ❇️Добавить локацию
-/delete - ⛔️Удалить локацию
-/search - 🔍Поиск координат по названию
+❔Помощь, запустить бота /start
+❗️Частые ошибки /errors
+👤Профиль /me
+❇️Добавить локацию /add
+⛔️Удалить локацию /delete
+🔍Поиск координат по названию /search
+🔁Перевод из WGS84 в СК42
+/wgs84_to_sk42
+🔁Перевод из СК42 в WGS84
+/sk42_to_wgs84
 Вы также можете отправить местоположение вложением
 Бот поддерживает 5 локаций
 """, reply_markup=markup)
-    # Замена None в userdata на ""
-    message.chat.username = message.chat.username if message.chat.username else ""
-    message.chat.first_name = message.chat.first_name if message.chat.first_name else ""
-    message.chat.last_name = message.chat.last_name if message.chat.last_name else ""
-    # Уведомление админа о запуске бота
-    if message.chat.id != admin_id:
-        bot.send_message(admin_id, f"Пользователь @{message.chat.username} {message.chat.first_name} {message.chat.last_name} запустил бота.")
+
+
+# Команда получения частых ошибок
+def errors(message: Message, bot: TeleBot):
+    bot.send_message(message.chat.id, f'''
+❗️ОШИБКА
+Ошибка преобразования координат, возможные причины: не верный формат координат, не удается определить мхезанизм преобразования EPSG для соответствующей зоны СК-42 ( отсутствует покрытие данного участка земной поверхности )
+
+❔Как это работает:
+Для преобразования координат используется метод ST_Transform() postgis. Преобразования координат доступны для територии стран бывшего СССР и прилегающих областей (там, где в основном использовалась СК-42) Неточность преобразования может достигать десятка метров (горные районы), обычно единицы метров.
+''')
+
 
 # Команда получения профиля
 def me(message: Message, bot: TeleBot):
-    db.update_user_data(message.chat.id, message.chat.username, message.chat.first_name,  message.chat.last_name)
-    if message.chat.username == None:
-        text1 = ""
-        message.chat.username = ""
-    else:
-        text1 = f"👤Username: @{message.chat.username}\n"
-    if message.chat.first_name == None:
-        text2 = ""
-        message.chat.first_name = ""
-    else:
-        text2 = f"▪️Имя: {message.chat.first_name}\n"
+    text1 = f"👤Username: @{message.chat.username}\n" if message.chat.username else ""
+    text2 = f"▪️Имя: {message.chat.first_name}\n" if message.chat.first_name else ""
     req = db.get_requests(message.chat.id)
     bot.send_message(message.chat.id, f'''
 Ваш профиль:
 🪪ID: {message.chat.id}
 {text1}{text2}🌤Выполненных запросов погоды: {req}
 ''')
-    if message.chat.last_name == None:
-        message.chat.last_name = ""
-    if message.chat.id != admin_id:
-        bot.send_message(admin_id, f'''
-Пользователь @{message.chat.username} {message.chat.first_name} {message.chat.last_name} запросил профиль
-''')
+
 
 # Команда добавления локации
 def add_location_command(message: Message, bot: TeleBot):
     bot.send_message(message.chat.id, "Отправьте название локации")
     bot.register_next_step_handler(message, process_add_location_name, bot=bot)
+
+
 # Получаем имя локации
 def process_add_location_name(message: Message, bot: TeleBot):
-    location_name = message.text
-    bot.send_message(message.chat.id, "Отправьте широту локации\n(координатная система WGS84 градусы, например 47.12345)")
-    bot.register_next_step_handler(message, process_add_location_latitude, location_name, bot=bot)
-# Получаем координаты локации и добавляем в базу
-def process_add_location_latitude(message: Message, location_name, bot: TeleBot):
-    latitude_input = message.text
-    if re.match(r'^\d{2}\.\d+$', latitude_input):
-        latitude = float(latitude_input)
-        bot.send_message(message.chat.id, "Отправьте долготу локации\n(координатная система WGS84 градусы, например 37.54321)")
-        bot.register_next_step_handler(message, process_add_location_longitude, location_name, latitude, bot=bot)
+    if len(message.text) < 60:
+        location_name = message.text
+        bot.send_message(message.chat.id, f"""
+Отправьте координаты локации
+в формате WGS84 широта/долгота,
+например N: 47.12345° E: 37.54321°
+или СК42, например X: 654321 Y: 654321
+""")
+        bot.register_next_step_handler(message, process_add_location, location_name, bot=bot)
     else:
-        bot.send_message(message.chat.id, "Некорректный формат широты\nПожалуйста отправьте ещё раз\n(координатная система WGS84 градусы, например 47.12345)")
-        bot.register_next_step_handler(message, process_add_location_latitude, location_name, bot=bot)
+        bot.send_message(message.chat.id, "Отправьте корректное название локации (длина названия не больше 60)")
+        bot.register_next_step_handler(message, process_add_location_name, bot=bot)
 
-def process_add_location_longitude(message: Message, location_name, latitude, bot: TeleBot):
-    longitude_input = message.text
-    if re.match(r'^\d{2}\.\d+$', longitude_input):
-        longitude = float(longitude_input)
+
+# Получаем координаты локации и добавляем в базу
+def process_add_location(message: Message, location_name, bot: TeleBot):
+    pattern = r"\d{2,3}\.\d{5,14}"
+    numbers = re.findall(pattern, message.text)
+    if len(numbers) == 2:
+        latitude = round(float(numbers[0]), 6)
+        longitude = round(float(numbers[1]), 6)
         result = db.add_location(message.chat.id, location_name, latitude, longitude)
         bot.send_message(message.chat.id, result)
     else:
-        bot.send_message(message.chat.id, "Некорректный формат долготы\nПожалуйста отправьте ещё раз\n(координатная система WGS84 градусы, например 37.54321)")
-        bot.register_next_step_handler(message, process_add_location_longitude, location_name, latitude, bot=bot)
+        answer = functions.sk42_to_wgs84(message.text)
+        if isinstance(answer, str):
+            bot.send_message(message.chat.id, f"""
+{answer}.\nПожалуйста отправьте ещё раз
+в формате WGS84 широта/долгота,
+например N: 47.12345° E: 37.54321°
+или СК42, например X: 654321 Y: 654321
+""")
+            bot.register_next_step_handler(message, process_add_location, location_name, bot=bot)
+        else:
+            result = db.add_location(message.chat.id, location_name, answer[0], answer[1])
+            if result[:9] == "Локация '":
+                bot.send_message(message.chat.id,
+                                 f"Локация '{location_name}' X: {answer[2]} Y: {answer[3]} добавлена. Выполните команду /start.")
+            else:
+                bot.send_message(message.chat.id, result)
+
 
 # Команда удаления кнопки
 def delete_button(message: Message, bot: TeleBot):
-    db.update_user_data(message.chat.id, message.chat.username, message.chat.first_name, message.chat.last_name)
     bot.send_message(message.chat.id, "Выберите локацию для удаления.")
     bot.register_next_step_handler(message, process_delete_button, bot=bot)
+
+
 # Процесс удаления кнопки
 def process_delete_button(message: Message, bot: TeleBot):
     button_name = message.text
@@ -149,43 +137,80 @@ def process_delete_button(message: Message, bot: TeleBot):
             name = button_data[i * 3]
             if name:
                 buttons.append(types.KeyboardButton(name))
-        markup.add(*buttons)  
-# Если кнопка удалена
+        markup.add(*buttons)
+    # Если кнопка удалена
     if f"Локация '{button_name}' не найдена.\nВыполните команду /start" in result:
         markup = types.ReplyKeyboardRemove()
-        bot.send_message(message.chat.id, result, reply_markup=markup)
-    else:
-        bot.send_message(message.chat.id, result, reply_markup=markup)
+    bot.send_message(message.chat.id, result, reply_markup=markup)
+
 
 # Команда поиска координат локации
 def search(message: Message, bot: TeleBot):
     bot.send_message(message.chat.id, "Отправьте название искомой локации")
     bot.register_next_step_handler(message, request, bot=bot)
+
+
 # Ответ
 def request(message: Message, bot: TeleBot):
-    try:
-        int(message.text)
+    if message.text.isdigit():
         bot.send_message(message.chat.id, "Некорректное название, попробуйте ещё раз /search")
-    except ValueError:
+    else:
         res = functions.geocoder(message.text)
+        print(res)
         if res[0] == 200:
-            sent_message = bot.send_message(message.chat.id, res[1])
+            bot.send_message(message.chat.id, res[1])
         else:
             bot.send_message(message.chat.id, f"Ошибка {res}")
-            
+        if message.chat.id != admin_id:
+            bot.send_message(admin_id, f'''
+Пользователь @{message.chat.username} {message.chat.first_name} {message.chat.last_name} запросил поиск локации {message.text}
+''')
+
+
+# Команда перевода координат из WGS84 в СК42
+def wgs84_to_sk42(message: Message, bot: TeleBot):
+    bot.send_message(message.chat.id, "Отправьте координаты в формате WGS84, например 47.54321 37.12345")
+    bot.register_next_step_handler(message, answer_sk42, bot=bot)
+
+
+def answer_sk42(message: Message, bot: TeleBot):
+    answer = functions.wgs84_to_sk42(message.text)
+
+    if isinstance(answer, str):
+        bot.send_message(message.chat.id, answer)
+    else:
+        bot.send_message(message.chat.id, f"""
+Данные координаты в WGS84:\nN: {answer[2]}° E: {answer[3]}°
+Переведенные координаты в СК42:\nX: {answer[0]} Y: {answer[1]}
+""")
+
+
+# Команда перевода координат из СК42 в WGS84
+def sk42_to_wgs84(message: Message, bot: TeleBot):
+    bot.send_message(message.chat.id, "Отправьте координаты в формате СК42, например X = 654321  Y = 7654321")
+    bot.register_next_step_handler(message, answer_wgs84, bot=bot)
+
+
+def answer_wgs84(message: Message, bot: TeleBot):
+    answer = functions.sk42_to_wgs84(message.text)
+    if isinstance(answer, str):
+        bot.send_message(message.chat.id, answer)
+    else:
+        bot.send_message(message.chat.id, f"""
+Данные координаты в СК42:\nX: {answer[2]} Y: {answer[3]}
+Переведенные координаты в WGS84:\nN: {answer[0]}° E: {answer[1]}°
+""")
+
+
 # Обработчик получения погоды из кнопки или местоположения
 def get_weather(message: Message, bot: TeleBot):
-    db.update_user_data(message.chat.id, message.chat.username, message.chat.first_name, message.chat.last_name)
-    message.chat.username = message.chat.username if message.chat.username else ""
-    message.chat.first_name = message.chat.first_name if message.chat.first_name else ""
-    message.chat.last_name = message.chat.last_name if message.chat.last_name else ""
     location_name = message.text
     latitude = None
     longitude = None
     if message.location:
-         latitude = str(message.location.latitude)[:8]
-         longitude = str(message.location.longitude)[:8]
-         
+        latitude = str(message.location.latitude)[:8]
+        longitude = str(message.location.longitude)[:8]
+
     # Проверка кнопки в базе
     button_data = db.get_buttons(message.chat.id)
     if button_data and message.location is None:
@@ -198,48 +223,33 @@ def get_weather(message: Message, bot: TeleBot):
                 latitude = latitude_column
                 longitude = longitude_column
                 break
-                
+
     if latitude is not None and longitude is not None:
         new_requests = db.get_requests(message.chat.id) + 1
         db.update_requests(message.chat.id, new_requests)
-        url_yandex = f'https://api.weather.yandex.ru/v2/informers?lat={latitude}&lon={longitude}&lang=ru_RU'
-        url_openweathermap = f'https://api.openweathermap.org/data/2.5/weather?lat={latitude}&lon={longitude}&appid={token_openweathermap}&exclude=current&units=metric'
-        req_opwth = requests.get(url=url_openweathermap)
-        if message.chat.id != admin_id:
-            bot.send_message(admin_id, f'Пользователь @{message.chat.username} {message.chat.first_name} {message.chat.last_name} запросил погоду в {location_name}')
-        for token in token_yandex_list:
-            req_yan = requests.get(url=url_yandex, headers=token)
-            if req_yan.status_code == 200 and req_opwth.status_code == 200:
-                data_req_yan = json.loads(req_yan.text)
-                data_req_opwth = json.loads(req_opwth.text)
-                fact = data_req_yan["fact"]
-                if fact["condition"] in code_to_smile:
-                    wd = code_to_smile[fact["condition"]]
-                    wd = wd.lower()
-                else:
-                    wd = "Творится что-то страшное!!!"
-                wind_60 = round(data_req_opwth["wind"]["deg"] / 6, 2)
-                wind_60 = '{:.2f}'.format(wind_60).replace('.', '-')
-                bot.send_message(message.chat.id, f'''
-По данным Яндекс Погоды 
-в {location_name} {wd}
-Температура {fact["temp"]}°С
-Давление {fact["pressure_mm"]} мм рт. ст.
-Направление ветра {data_req_opwth["wind"]["deg"]}° ({wind_60})
-Скорость ветра {fact["wind_speed"]} м/с 
-''')
-                break
-            elif req_yan.status_code != 200:
-                bot.send_message(admin_id, f'Проблема с API у @{message.chat.username} {message.chat.first_name} {message.chat.last_name}\nYandex code: {req_yan.status_code}\nWeather code: {req_opwth.status_code}\nПодключаю запасной ключ API..')
+        url_open_meteo = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=ms&timezone=Europe%2FMoscow"
+        req_opmt = requests.get(url=url_open_meteo)
 
-        if req_yan.status_code != 200:
-            bot.send_message(admin_id, "Всё трындец")
+        if req_opmt.status_code == 200:
+            data_req_opmt = json.loads(req_opmt.text)
+            wind_60 = round(data_req_opmt["current"]["wind_direction_10m"] / 6, 2)
+            wind_60 = '{:.2f}'.format(wind_60).replace('.', '-')
+            bot.send_message(message.chat.id, f'''
+По данным погоды в {location_name}:
+Температура {data_req_opmt["current"]["temperature_2m"]} °С
+Давление {int(round((data_req_opmt["current"]["surface_pressure"] * 0.75), 0))} мм рт. ст.
+Направление ветра {data_req_opmt["current"]["wind_direction_10m"]}° ({wind_60})
+Скорость ветра {round(data_req_opmt["current"]["wind_speed_10m"], 1)} м/с 
+Порывы ветра {round(data_req_opmt["current"]["wind_gusts_10m"], 1)} м/с
+''')
+
+        elif req_opmt.status_code != 200:
+            bot.send_message(admin_id,
+                             f'Проблема с API у @{message.chat.username} {message.chat.first_name} {message.chat.last_name}\nCode: {req_opmt.status_code}')
             bot.send_message(message.chat.id, "Неполадки с ботом, напишите администратору")
-        
+
         with open(r'log.txt', mode='a') as log:
-            log.write(f'Пользователь @{message.chat.username} {message.chat.first_name} {message.chat.last_name} запросил погоду в {location_name}\n')
+            log.write(
+                f'Пользователь @{message.chat.username} {message.chat.first_name} {message.chat.last_name} запросил погоду в {location_name}\n')
     else:
-        bot.send_message(message.chat.id, 'Такой локации нет')
-        if message.chat.id != admin_id:
-            bot.send_message(admin_id, f'Пользователь @{message.chat.username} {message.chat.first_name} {message.chat.last_name} написал в бот {message.text}')
-            
+        bot.send_message(message.chat.id, 'Такой локации нет, добавьте с помощью команды /add')

@@ -1,39 +1,15 @@
 import sqlite3
 
-def create_table_users(): # Создаём базу данных sql пользователей
+def create_table(table_name, columns): # Общая функция для создания таблиц
     conn = sqlite3.connect('bot.db')
     cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS users 
-                    (id INTEGER PRIMARY KEY, 
-                    username TEXT, 
-                    firstname TEXT, 
-                    lastname TEXT, 
-                    requests INTEGER)''')
+    
+    columns_str = ', '.join(columns)
+    query = f'CREATE TABLE IF NOT EXISTS {table_name} ({columns_str})'
+    
+    cursor.execute(query)
     conn.commit()
-    cursor.close()
-    conn.close()
-
-def create_table_buttons(): # Создаём базу данных sql кнопок
-    conn = sqlite3.connect('bot.db')
-    cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS buttons
-                    (id INTEGER PRIMARY KEY, 
-                    name1 TEXT, 
-                    latitude1 INTEGER, 
-                    longitude1 INTEGER,             
-                    name2 TEXT, 
-                    latitude2 INTEGER, 
-                    longitude2 INTEGER,
-                    name3 TEXT, 
-                    latitude3 INTEGER, 
-                    longitude3 INTEGER,
-                    name4 TEXT, 
-                    latitude4 INTEGER, 
-                    longitude4 INTEGER,
-                    name5 TEXT, 
-                    latitude5 INTEGER, 
-                    longitude5 INTEGER)''')
-    conn.commit()
+    
     cursor.close()
     conn.close()
 
@@ -70,14 +46,13 @@ def update_user_data(user_id, username, firstname, lastname):
     if user:
         # Если пользователь существует, обновляем его данные
         cursor.execute("UPDATE users SET username=?, firstname=?, lastname=? WHERE id=?", (username, firstname, lastname, user_id))
-        conn.commit()
     else:
         # Иначе создаём нового пользователя 
         requests = 0
         cursor.execute('''INSERT INTO users(id, username, firstname, lastname, requests) 
                           VALUES(?, ?, ?, ?, ?)''', (user_id, username, firstname, lastname, requests))
-        conn.commit()
     
+    conn.commit()
     # Закрываем соединение с базой данных
     cursor.close()
     conn.close()
@@ -148,7 +123,7 @@ def add_location(user_id, location_name, latitude, longitude):
                 conn.commit()
                 cursor.close()
                 conn.close()
-                return f"Локация '{location_name}' добавлена. Выполните команду /start."
+                return f"Локация '{location_name}' N: {latitude}° E: {longitude}° добавлена. Выполните команду /start."
 
     cursor.close()
     conn.close()
