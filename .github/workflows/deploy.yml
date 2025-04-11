@@ -22,4 +22,4 @@ jobs:
             cd ~/telegram-weather-bot
             git pull origin master
             pip install -r requirements.txt
-            sudo systemctl restart weatherbot
+            sudo systemctl restart bot
