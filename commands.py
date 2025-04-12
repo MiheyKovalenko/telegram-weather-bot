@@ -152,11 +152,14 @@ def search(message: Message, bot: TeleBot):
 
 # Ответ
 def request(message: Message, bot: TeleBot):
-    if message.text.isdigit():
-        bot.send_message(message.chat.id, "Некорректное название, попробуйте ещё раз /search")
-    else:
+    try:
+        print(f"[введено пользователем] {message.text}")
+        if not message.text or message.text.isdigit():
+            bot.send_message(message.chat.id, "Некорректное название, попробуйте ещё раз /search")
+            return
+
         res = functions.geocoder(message.text)
-        print(res)
+        print(f"[geocoder response] {res}")
         if res[0] == 200:
             bot.send_message(message.chat.id, res[1])
         else:
@@ -165,6 +168,10 @@ def request(message: Message, bot: TeleBot):
             bot.send_message(admin_id, f'''
 Пользователь @{message.chat.username} {message.chat.first_name} {message.chat.last_name} запросил поиск локации {message.text}
 ''')
+    except Exception as e:
+        print(f"[ОШИБКА в request()] {e}")
+        bot.send_message(message.chat.id, f"Произошла ошибка: {e}")
+
 
 
 # Команда перевода координат из WGS84 в СК42
