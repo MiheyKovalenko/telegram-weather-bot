@@ -6,7 +6,6 @@ import re
 
 config = configparser.ConfigParser()
 config.read('config.ini')
-token_yandex_geo = config.get('default', 'token_yandex_geo')  # API токен Яндекс геокодера
 admin_id = int(config.get('default', 'admin_id'))  # id админа
 
 
