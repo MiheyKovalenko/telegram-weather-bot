@@ -74,15 +74,11 @@ def geocoder(request):
     try:
         url = f"https://geocoding-api.open-meteo.com/v1/search?name={request}&count=3&language=ru&format=json"
         response = requests.get(url)
-        print(f"[geocoder] Запрос: {url}")
-        print(f"[geocoder] Статус: {response.status_code}")
 
         if response.status_code != 200:
             return response.status_code, "Ошибка при обращении к Open-Meteo"
 
         data = response.json()
-        print(f"[geocoder] Ответ: {data}")
-
         results = data.get("results")
         if not results:
             return 404, "Локация не найдена. Попробуйте снова."
@@ -104,7 +100,6 @@ N: {lat}° E: {lon}°
         return 200, "".join(message)
 
     except Exception as e:
-        print(f"[geocoder] Ошибка: {e}")
         return 500, f"Ошибка при выполнении запроса: {e}"
 
 
