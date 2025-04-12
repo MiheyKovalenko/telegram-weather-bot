@@ -1,0 +1,23 @@
+name: Deploy DEV bot
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into server and deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 45916
+          script: |
+            cd ~/telegram-weather-bot-dev
+            git pull origin dev
+            pip install -r requirements.txt
+            sudo systemctl restart weatherbot-dev

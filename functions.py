@@ -71,41 +71,36 @@ def sk42_to_wgs84(message):
 
 
 def geocoder(request):
-    results = 3  # Число кратное 3
-    url_yandex = f'https://geocode-maps.yandex.ru/1.x/?apikey={token_yandex_geo}&geocode={request}&results={results}&format=json&lang=ru_RU'
-    req_yan = requests.get(url=url_yandex)
-    if req_yan.status_code == 200:
-        data_req_yan = json.loads(req_yan.text)
-        found = int(
-            data_req_yan['response']['GeoObjectCollection']['metaDataProperty']['GeocoderResponseMetaData']['found'])
-        latitude = []
-        longitude = []
-        city = []
+    try:
+        url = f"https://geocoding-api.open-meteo.com/v1/search?name={request}&count=3&language=ru&format=json"
+        response = requests.get(url)
+
+        if response.status_code != 200:
+            return response.status_code, "Ошибка при обращении к Open-Meteo"
+
+        data = response.json()
+        results = data.get("results")
+        if not results:
+            return 404, "Локация не найдена. Попробуйте снова."
+
         message = []
-        if found == 0:
-            return req_yan.status_code, "Некорректное название, попробуйте ещё раз /search"
-        for i in range(found):
-            res = data_req_yan['response']['GeoObjectCollection']['featureMember'][i]['GeoObject']['Point']['pos']
-            parts = res.split()
-            latitude.append(float(parts[1]))
-            longitude.append(float(parts[0]))
-            city.append(
-                data_req_yan['response']['GeoObjectCollection']['featureMember'][i]['GeoObject']['metaDataProperty'][
-                    'GeocoderMetaData']['text'])
-            message.append(f'''➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖
-{city[i]}
+        for loc in results:
+            city = loc.get("name", "Неизвестно")
+            admin = loc.get("admin1") or ""
+            country = loc.get("country", "Неизвестно")
+            lat = loc.get("latitude")
+            lon = loc.get("longitude")
+
+            message.append(f"""➖➖➖➖➖➖➖➖➖➖
+{city}, {admin}, {country}
 Формат координат: WGS84 градусы
-N: {latitude[i]}° E: {longitude[i]}°
-''')
+N: {lat}° E: {lon}°
+""")
 
-        # Разбиваем сообщения на части
-        message_parts = ["".join(message[i:i + 3]) for i in range(0, len(message), 3)]
+        return 200, "".join(message)
 
-        # Возвращаем сообщения вместе с HTTP-статусом
-        return req_yan.status_code, message_parts
-    else:
-        # В случае ошибки возвращаем только HTTP-статус
-        return req_yan.status_code
+    except Exception as e:
+        return 500, f"Ошибка при выполнении запроса: {e}"
 
 
 def notification(message):
