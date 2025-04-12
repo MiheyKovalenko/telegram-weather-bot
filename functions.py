@@ -71,11 +71,18 @@ def sk42_to_wgs84(message):
 
 
 def geocoder(request):
-    url = f"https://geocoding-api.open-meteo.com/v1/search?name={request}&count=3&language=ru&format=json"
-    response = requests.get(url)
+    try:
+        url = f"https://geocoding-api.open-meteo.com/v1/search?name={request}&count=3&language=ru&format=json"
+        response = requests.get(url)
+        print(f"[geocoder] Запрос: {url}")
+        print(f"[geocoder] Статус: {response.status_code}")
 
-    if response.status_code == 200:
+        if response.status_code != 200:
+            return response.status_code, "Ошибка при обращении к Open-Meteo"
+
         data = response.json()
+        print(f"[geocoder] Ответ: {data}")
+
         results = data.get("results")
         if not results:
             return 404, "Локация не найдена. Попробуйте снова."
@@ -83,10 +90,11 @@ def geocoder(request):
         message = []
         for loc in results:
             city = loc.get("name", "Неизвестно")
-            admin = loc.get("admin1", "")
+            admin = loc.get("admin1") or ""
             country = loc.get("country", "Неизвестно")
             lat = loc.get("latitude")
             lon = loc.get("longitude")
+
             message.append(f"""➖➖➖➖➖➖➖➖➖➖
 {city}, {admin}, {country}
 Формат координат: WGS84 градусы
@@ -95,7 +103,9 @@ N: {lat}° E: {lon}°
 
         return 200, "".join(message)
 
-    return response.status_code, "Ошибка при обращении к Open-Meteo"
+    except Exception as e:
+        print(f"[geocoder] Ошибка: {e}")
+        return 500, f"Ошибка при выполнении запроса: {e}"
 
 
 def notification(message):
