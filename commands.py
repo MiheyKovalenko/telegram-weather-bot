@@ -154,20 +154,26 @@ def search(message: Message, bot: TeleBot):
 def request(message: Message, bot: TeleBot):
     try:
         print(f"[введено пользователем] {message.text}")
+
         if not message.text or message.text.isdigit():
             bot.send_message(message.chat.id, "Некорректное название, попробуйте ещё раз /search")
             return
 
         res = functions.geocoder(message.text)
         print(f"[geocoder response] {res}")
-        if res[0] == 200:
+
+        if isinstance(res, tuple) and res[0] == 200:
             bot.send_message(message.chat.id, res[1])
+        elif isinstance(res, tuple):
+            bot.send_message(message.chat.id, f"Ошибка {res[0]}: {res[1]}")
         else:
-            bot.send_message(message.chat.id, f"Ошибка {res}")
+            bot.send_message(message.chat.id, f"Ошибка: неожиданное значение: {res}")
+
         if message.chat.id != admin_id:
             bot.send_message(admin_id, f'''
 Пользователь @{message.chat.username} {message.chat.first_name} {message.chat.last_name} запросил поиск локации {message.text}
 ''')
+
     except Exception as e:
         print(f"[ОШИБКА в request()] {e}")
         bot.send_message(message.chat.id, f"Произошла ошибка: {e}")
