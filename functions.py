@@ -82,9 +82,9 @@ def geocoder(request):
 
         message = []
         for loc in results:
-            city = loc.get("name")
-            admin = loc.get("admin1") or ""
-            country = loc.get("country")
+            city = loc.get("name", "Неизвестно")
+            admin = loc.get("admin1", "")
+            country = loc.get("country", "Неизвестно")
             lat = loc.get("latitude")
             lon = loc.get("longitude")
             message.append(f"""➖➖➖➖➖➖➖➖➖➖
@@ -95,9 +95,7 @@ N: {lat}° E: {lon}°
 
         return 200, "".join(message)
 
-    else:
-        return response.status_code, "Ошибка при обращении к Open-Meteo"
-
+    return response.status_code, "Ошибка при обращении к Open-Meteo"
 
 
 def notification(message):
