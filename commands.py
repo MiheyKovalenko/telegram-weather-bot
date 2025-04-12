@@ -179,7 +179,6 @@ def request(message: Message, bot: TeleBot):
         bot.send_message(message.chat.id, f"Произошла ошибка: {e}")
 
 
-
 # Команда перевода координат из WGS84 в СК42
 def wgs84_to_sk42(message: Message, bot: TeleBot):
     bot.send_message(message.chat.id, "Отправьте координаты в формате WGS84, например 47.54321 37.12345")
